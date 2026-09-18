@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#111827">
+  <title>AI Chat</title>
+  <style>
+    :root { color-scheme: dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: #0b1020; color: #f8fafc; }
+    .app { min-height: 100vh; max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; }
+    header { padding: 18px 16px; border-bottom: 1px solid #273149; background: #111827; position: sticky; top: 0; z-index: 2; }
+    header h1 { margin: 0; font-size: 20px; }
+    header p { margin: 4px 0 0; color: #94a3b8; font-size: 13px; }
+    #chat { flex: 1; padding: 18px 14px 130px; overflow-y: auto; }
+    .msg { max-width: 86%; margin: 0 0 14px; padding: 12px 14px; border-radius: 16px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.45; }
+    .user { margin-left: auto; background: #2563eb; }
+    .assistant { margin-right: auto; background: #1e293b; }
+    .error { background: #4a1d1d; }
+    .empty { text-align: center; color: #94a3b8; padding: 50px 20px; }
+    form { position: fixed; left: 50%; bottom: 0; transform: translateX(-50%); width: min(900px, 100%); padding: 12px; padding-bottom: calc(12px + env(safe-area-inset-bottom)); background: rgba(11,16,32,.96); border-top: 1px solid #273149; display: flex; gap: 8px; }
+    textarea { flex: 1; resize: none; min-height: 48px; max-height: 140px; border: 1px solid #334155; border-radius: 14px; background: #111827; color: #fff; padding: 13px; font: inherit; outline: none; }
+    button { min-width: 78px; border: 0; border-radius: 14px; background: #2563eb; color: white; font-weight: 700; padding: 0 16px; }
+    button:disabled { opacity: .55; }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <h1>AI Chat</h1>
+      <p>Powered by OpenAI</p>
+    </header>
+    <section id="chat" aria-live="polite">
+      <div class="empty" id="empty">Ask me anything.</div>
+    </section>
+    <form id="form">
+      <textarea id="input" placeholder="Type your message..." rows="1" autocomplete="off"></textarea>
+      <button id="send" type="submit">Send</button>
+    </form>
+  </main>
+<script>
+const chat = document.getElementById("chat");
+const empty = document.getElementById("empty");
+const form = document.getElementById("form");
+const input = document.getElementById("input");
+const send = document.getElementById("send");
+const messages = [];
+
+function addMessage(role, content, isError = false) {
+  empty?.remove();
+  const div = document.createElement("div");
+  div.className = "msg " + role + (isError ? " error" : "");
+  div.textContent = content;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+input.addEventListener("input", () => {
+  input.style.height = "auto";
+  input.style.height = Math.min(input.scrollHeight, 140) + "px";
+});
+
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const text = input.value.trim();
+  if (!text || send.disabled) return;
+
+  messages.push({ role: "user", content: text });
+  addMessage("user", text);
+  input.value = "";
+  input.style.height = "auto";
+  send.disabled = true;
+  send.textContent = "…";
+
+  try {
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages })
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.error || "I couldn't connect to the AI right now. Please try again.");
+    }
+
+    messages.push({ role: "assistant", content: data.answer });
+    addMessage("assistant", data.answer);
+  } catch (error) {
+    addMessage("assistant", error.message || "I couldn't connect to the AI right now. Please try again.", true);
+  } finally {
+    send.disabled = false;
+    send.textContent = "Send";
+    input.focus();
+  }
+});
+</script>
+</body>
+</html>
