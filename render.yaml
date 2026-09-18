@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: ai-chat-app
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
